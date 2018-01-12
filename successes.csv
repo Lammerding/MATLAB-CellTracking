@@ -1,4 +1,0 @@
-,,,,,,,,,Constriction Passage
-Date,Position number,Duration of movie,Cell #, Initial time point,Initial X,Initial Y,Constriction size?,Notes,Constriction #,Time starting,Time finishing,Duration,Successful? (1 or 0),,Nucleus total movement until top edge reaches center of constrictions,Nucleus average speed until top edge reaches center of constrictions,Nucleus time until top edge reaches center of constrictions
-MDA-MD-468 NLS-copGFP H2B-tdTomato 0to10FBS 2umConstrictions 10minPerImage (NLS + H2B),1,110,1,1,733.107,491.424,2,,2,6,9,3,1,,66,33,2
-,,,3,1,1003.88,676.585,2,,1,2,9,7,1,,34,17,2

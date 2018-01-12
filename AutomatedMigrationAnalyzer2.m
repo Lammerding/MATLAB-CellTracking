@@ -39,10 +39,19 @@ addpath('bfmatlab', 'Migration Analysis')
 fprintf('Getting user input...')
 
 %% user selects .czi file with data to analyze
-[fileName, filePath] = uigetfile('N:\*.czi', 'Please select the .czi image file');
+if ispc
+    [fileName, filePath] = uigetfile({'N:/*.czi;*.avi'}, 'Please select the .czi or .avi file');
+else
+    [fileName, filePath] = uigetfile({'*.czi;*.avi'}, 'Please select the .czi or .avi file');
+end
 if fileName == 0
     fprintf('\nNo file selected.\n')
     return
+end
+if strcmpi(fileName((end - 2):end), 'avi')
+    isAVI = true;
+else
+    isAVI = false;
 end
 
 %% user selects folder to save data to. use D drive for better writing/reading speed
@@ -51,14 +60,22 @@ if saveFolder == 0
     fprintf('\n')
     return
 end
-saveFolder = [saveFolder '\' fileName(1:(min([find(fileName == '(', 1, 'last'), find(fileName == '.', 1, 'last')]) - 1))];
+if ispc
+    saveFolder = [saveFolder '\' fileName(1:(min([find(fileName == '(', 1, 'last'), find(fileName == '.', 1, 'last')]) - 1))];
+else
+    saveFolder = [saveFolder '/' fileName(1:(min([find(fileName == '(', 1, 'last'), find(fileName == '.', 1, 'last')]) - 1))];
+end
 
-sections = questdlg('Analyze all device sections or a subset?', 'Accuracy Check', 'All', 'Subset', 'All');
-if sections(1) == 'S'
-    sections = unique(str2num(cell2mat(inputdlg('Enter which sections you want to analyze, separated by spaces or commas.')))); %#ok<ST2NM>
-    if isempty(sections)
-        fprintf('\n')
-        return
+if isAVI
+    sections = 1;
+else
+    sections = questdlg('Analyze all device sections or a subset?', 'Accuracy Check', 'All', 'Subset', 'All');
+    if sections(1) == 'S'
+        sections = unique(str2num(cell2mat(inputdlg('Enter which sections you want to analyze, separated by spaces or commas.')))); %#ok<ST2NM>
+        if isempty(sections)
+            fprintf('\n')
+            return
+        end
     end
 end
 
@@ -77,84 +94,101 @@ end
 cellsFromTop = strcmp(cellsFromTop, 'Top');
 
 %% load and prepare image reader
-fprintf('\nSetting up Bio-Formats reader...')
-if exist([filePath fileName(1:(min([find(fileName == '(', 1, 'last'), find(fileName == '.', 1, 'last')]) - 1)) '.czi'], 'file')
-    filePath = [filePath fileName(1:(min([find(fileName == '(', 1, 'last'), find(fileName == '.', 1, 'last')]) - 1)) '.czi'];
+if isAVI
+    series = 1;
+    vidReader = VideoReader([filePath fileName]);
+    timePoints = vidReader.NumberOfFrames; %#ok<VIDREAD>
+    vidReader = VideoReader([filePath fileName]);
+    saveFolder = [saveFolder ' (NLS + H2B)'];
+    l = 23.9935;
+    frameRate = 10;
 else
-    filePath = [filePath fileName];
-end
-reader = bfGetReader();
-reader = loci.formats.Memoizer(reader);
-reader.setId(filePath);
-%get number of sections
-series = reader.getSeriesCount;
-if sections(1) == 'A'
-    sections = 1:series;
-end
-%get and sort the channels
-omeMeta = reader.getMetadataStore;
-t = max(4 * (reader.getSizeY > 2000), 2);
+    fprintf('\nSetting up Bio-Formats reader...')
+    if exist([filePath fileName(1:(min([find(fileName == '(', 1, 'last'), find(fileName == '.', 1, 'last')]) - 1)) '.czi'], 'file')
+        filePath = [filePath fileName(1:(min([find(fileName == '(', 1, 'last'), find(fileName == '.', 1, 'last')]) - 1)) '.czi'];
+    else
+        filePath = [filePath fileName];
+    end
+    reader = bfGetReader();
+    reader = loci.formats.Memoizer(reader);
+    reader.setId(filePath);
+    %get number of sections
+    series = reader.getSeriesCount;
+    if sections(1) == 'A'
+        sections = 1:series;
+    end
+    %get and sort the channels
+    omeMeta = reader.getMetadataStore;
+    t = max(4 * (reader.getSizeY > 2000), 2);
 
-try
-    frameRate = round((double(omeMeta.getPlaneDeltaT(0, omeMeta.getPlaneCount(0) - 1).value) - double(omeMeta.getPlaneDeltaT(0, 0).value)) / (reader.getSizeT - 1) / 60);
-catch
-    frameRate = round((double(omeMeta.getPlaneDeltaT(0, reader.getSizeT - 1).value) - double(omeMeta.getPlaneDeltaT(0, 0).value)) / (reader.getSizeT - 1) / 60);
-end
+    try
+        frameRate = round((double(omeMeta.getPlaneDeltaT(0, omeMeta.getPlaneCount(0) - 1).value) - double(omeMeta.getPlaneDeltaT(0, 0).value)) / (reader.getSizeT - 1) / 60);
+    catch
+        frameRate = round((double(omeMeta.getPlaneDeltaT(0, reader.getSizeT - 1).value) - double(omeMeta.getPlaneDeltaT(0, 0).value)) / (reader.getSizeT - 1) / 60);
+    end
 
-channels = omeMeta.getChannelCount(0);
-if channels > 2
-    dic = str2num(cell2mat(inputdlg({'H2B', 'NLS'}, 'Accuracy Check', 1, {'0', '0'}))); %#ok<ST2NM>
-    if any(dic == 0)
-        saveFolder = [saveFolder ' (NLS)'];
-        h2b = nan;
-        nls = max(dic) - 1;
-        for k = 0:(omeMeta.getPixelsSizeC(0).getValue - 1)
-            if isempty(omeMeta.getChannelExcitationWavelength(0, k))
-                dic = k;
-                break
+    channels = omeMeta.getChannelCount(0);
+    if channels > 2
+        dic = str2num(cell2mat(inputdlg({'H2B', 'NLS'}, 'Accuracy Check', 1, {'0', '0'}))); %#ok<ST2NM>
+        if any(dic == 0)
+            saveFolder = [saveFolder ' (NLS)'];
+            h2b = nan;
+            nls = max(dic) - 1;
+            for k = 0:(omeMeta.getPixelsSizeC(0).getValue - 1)
+                if isempty(omeMeta.getChannelExcitationWavelength(0, k))
+                    dic = k;
+                    break
+                end
             end
+        else
+            h2b = dic(1) - channels;
+            nls = dic(2) - channels;
+            for k = 0:(omeMeta.getPixelsSizeC(0).getValue - 1)
+                if isempty(omeMeta.getChannelExcitationWavelength(0, k))
+                    dic = k + 1 - channels;
+                    break
+                end
+            end
+            saveFolder = [saveFolder ' (NLS + H2B)'];
+        end
+        if length(unique([dic h2b nls])) < 3
+            fprintf('\n')
+            return
         end
     else
-        h2b = dic(1) - channels;
-        nls = dic(2) - channels;
+        j = 0;
         for k = 0:(omeMeta.getPixelsSizeC(0).getValue - 1)
-            if isempty(omeMeta.getChannelExcitationWavelength(0, k))
-                dic = k + 1 - channels;
-                break
+            i = omeMeta.getChannelExcitationWavelength(0, k);
+            if isempty(i)
+                dic = k;
+            else
+                nls = k;
             end
         end
-        saveFolder = [saveFolder ' (NLS + H2B)'];
+        saveFolder = [saveFolder ' (NLS)'];
     end
-    if length(unique([dic h2b nls])) < 3
-        fprintf('\n')
-        return
+    
+    if channels > 2 && ~isnan(h2b)
+        k = channels + dic;
+    else
+        k = 1 + dic;
     end
-else
-    j = 0;
-    for k = 0:(omeMeta.getPixelsSizeC(0).getValue - 1)
-        i = omeMeta.getChannelExcitationWavelength(0, k);
-        if isempty(i)
-            dic = k;
-        else
-            nls = k;
-        end
-    end
-    saveFolder = [saveFolder ' (NLS)'];
+
+    l = 10 / double(omeMeta.getPixelsPhysicalSizeY(0).value);
 end
 mkdir(saveFolder)
 
-if channels > 2 && ~isnan(h2b)
-    k = channels + dic;
-else
-    k = 1 + dic;
-end
-
-l = 10 / double(omeMeta.getPixelsPhysicalSizeY(0).value);
 if length(sections) == 1
     fprintf('\nRotating image and locating constrictions...')
-    reader.setSeries(sections - 1);
     clear im
-    im(:, :, sections) = bfGetPlane(reader, k);
+    if isAVI
+        im3 = readFrame(vidReader);
+        im = im3(:, :, 3);
+        t = max(4 * (size(im, 2) > 2000), 2);
+    else
+        reader.setSeries(sections - 1);
+        im(:, :, sections) = bfGetPlane(reader, k);
+    end
     s = sections;
     angle = zeros(sections, 1);
     loc = zeros(sections, 6);
@@ -203,10 +237,12 @@ for s = sections
     
     if c >= 0
         fprintf('\n\tSection %g...', s)   
-        reader.setSeries(s - 1)
-
+        if ~isAVI
+            reader.setSeries(s - 1)
+        end
+        
         fprintf('\n\t\tLocating and tracking cells...')
-        if channels > 2 && ~isnan(h2b)
+        if isAVI || (channels > 2 && ~isnan(h2b))
             findAndTrackCellsNLSH2BNew
         else
             findAndTrackCellsNLS
@@ -219,7 +255,7 @@ for s = sections
         if series == 1
             s = str2double(fileName((find(fileName == '(', 1, 'last') + 1):(find(fileName == ')', 1, 'last') - 1))); %#ok<FXSET>
 			if isnan(s)
-				s = 1;
+				s = 1; %#ok<FXSET>
 			end
         end
         t = num2str(s);
@@ -235,10 +271,15 @@ for s = sections
         else
             video5 = video4;
         end
-        if channels > 2 && ~isnan(h2b)
-            save([saveFolder '\' t '.mat'], 'finishedCells', 'video5', 'v', 'v2', 'frameRate', 'c', 'loc', 'scaled')
+        if ispc
+            slash = '\';
         else
-            save([saveFolder '\' t '.mat'], 'finishedCells', 'video5', 'v', 'frameRate', 'c', 'loc', 'scaled')
+            slash = '/';
+        end
+        if isAVI || (channels > 2 && ~isnan(h2b))
+            save([saveFolder slash t '.mat'], 'finishedCells', 'video5', 'v', 'v2', 'frameRate', 'c', 'loc', 'scaled')
+        else
+            save([saveFolder slash t '.mat'], 'finishedCells', 'video5', 'v', 'frameRate', 'c', 'loc', 'scaled')
         end
     end
 end

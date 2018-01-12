@@ -1,18 +1,25 @@
 waitbar(0, h, 'Initializing...');
 set(h, 'Name', ['Section ' num2str(s)]);
-timePoints = reader.getSizeT;
+if isAVI
+    lastImage = im2uint16(im);
+    pixelMargin = 60;
+    l2 = size(im, 1);
+    minObjectSize = round(size(im, 1) * size(im, 2) / 2050); %this value was based off of a 2000 pixel size in a 1460x1940 image, is now smaller
+else    
+    timePoints = reader.getSizeT;
+    lastImage = im2uint16(bfGetPlane(reader, channels + dic));
+    pixelMargin = round(25 / double(omeMeta.getPixelsPhysicalSizeY(0).value));
+    l2 = reader.getSizeX;
+    minObjectSize = round(reader.getSizeX * reader.getSizeY / 2050); %this value was based off of a 2000 pixel size in a 1460x1940 image, is now smaller
+end
 
 %% prepare values for image stabilization
-pixelMargin = round(25 / double(omeMeta.getPixelsPhysicalSizeY(0).value));
 searchSizeFraction = 5;
-lastImage = im2uint16(bfGetPlane(reader, channels + dic));
 stdev = std(double(lastImage(:)));
 xMin = size(lastImage, 2) * (1 - 1 / searchSizeFraction) / 2;
 xMax = size(lastImage, 2) - xMin;
 yMin = size(lastImage, 1) * (1 - 1 / searchSizeFraction) / 2;
 yMax = size(lastImage, 1) - yMin;
-minObjectSize = round(reader.getSizeX * reader.getSizeY / 2050); %this value was based off of a 2000 pixel size in a 1460x1940 image, is now smaller
-l2 = reader.getSizeX;
 offset = [0 0];
 
 imavg = zeros(1, timePoints);
@@ -28,10 +35,20 @@ finishedCells = struct('Area', 0, 'Centroid', 0, 'BoundingBox', 0, 'RedIntensity
 %%
 for p = 1:timePoints
     waitbar(p / timePoints, h, ['Working on frame ' num2str(p) '/' num2str(timePoints) '...']);
-    %% use background images for stabilization
-    bg = im2uint16(bfGetPlane(reader, channels * p + dic));
-    %use gfp image to make sure this is a decent image
-    im = im2uint16(bfGetPlane(reader, channels * p + h2b));
+    if isAVI
+        if p > 1
+            im3 = readFrame(vidReader);
+        end
+        bg = im2uint16(im3(:, :, 3));
+        im = im2uint16(im3(:, :, 1));
+        grn = im2uint16(im3(:, :, 2));
+    else
+       %% use background images for stabilization
+        bg = im2uint16(bfGetPlane(reader, channels * p + dic));
+        %use h2b image to make sure this is a decent image
+        im = im2uint16(bfGetPlane(reader, channels * p + h2b));
+        grn = im2uint16(bfGetPlane(reader, channels * p + nls));
+    end
     pixels = bwconncomp(bwareaopen(imbinarize(im, 'adaptive'), 1000, 4), 4);
     if pixels.NumObjects > 0 && c > 0 && std(double(bg(:))) < 3 * stdev
         % Area that is being matched:
@@ -48,7 +65,6 @@ for p = 1:timePoints
     %% find nuclei using the RFP channel
     imavg(p) = double(median(im(:)));
    
-    grn = im2uint16(bfGetPlane(reader, channels * p + nls));
     imavgG(p) = double(median(grn(:)));
     
     %filter out noise and convert to black and white 
@@ -137,6 +153,7 @@ for p = 1:timePoints
 %     video4(:, :, :, p) = im2uint8(cat(3, bg .* uint16(50000 ./ (max(bg(:)))) .* uint16(~bwR) + imadjust(im) .* uint16(bwR), (bg .* uint16(50000 ./ (max(bg(:)))) + grn .* uint16(250000 ./ (max(grn(:))))) .* uint16(~bwR), bg .* uint16(50000 ./ (max(bg(:)))) .* uint16(~bwR)));
 %     video4(:, :, :, p) = im2uint8(cat(3, bg .* uint16(50000 ./ (max(bg(:)))) + imadjust(im) .* uint16(bwR), bg .* uint16(50000 ./ (max(bg(:)))) + grn .* uint16(250000 ./ (max(grn(:)))), bg .* uint16(50000 ./ (max(bg(:))))));
     video4(:, :, :, p) = im2uint8(cat(3, bg .* uint16(50000 ./ (max(bg(:)))) + im2uint16(bwR), bg .* uint16(50000 ./ (max(bg(:)))) + grn .* uint16(250000 ./ (max(grn(:)))), bg .* uint16(50000 ./ (max(bg(:))))));
+        
 
     %% cells have been located in current frame. assign them to cells from previous frame
     if isempty(fieldnames(activeCells))
@@ -239,7 +256,7 @@ for p = 1:timePoints
                         %cell may have left image
                         activeCells(i).Alive(p) = 3;
                     elseif cellData(j).BoundingBox(2) < sqrt(m) / 2 || cellData(j).BoundingBox(2) + cellData(j).BoundingBox(4) > size(bwR, 1) - sqrt(m) / 2 || (any(activeCells(i).Constriction(p - 1) == [0.2 3.2]) && (cellData(j).BoundingBox(1) < sqrt(m) / 2 || cellData(j).BoundingBox(1) + cellData(j).BoundingBox(3) > size(bwR, 2) - sqrt(m) / 2))
-                        activeCells(end + 1).TimeAppearing = p;
+                        activeCells(end + 1).TimeAppearing = p; %#ok<*SAGROW>
                         activeCells(end).Area(p) = cellData(j).Area;
 %                         activeCells(end).GreenArea(p) = cellData(j).GreenArea;
                         activeCells(end).Centroid(p, :) = cellData(j).Centroid;
@@ -788,7 +805,12 @@ end
 
 %% edit constriction passage to remove frames when a nucleus changes constriction without going below the line
 if all(c ~= [0 15])
-    centers = imfindcircles(bwareaopen(edge(imrotate(bfGetPlane(reader, channels + dic), angle(s)), 'zerocross'), 10), round([1.135 1.816] .* l), 'Sensitivity', 0.9);
+    if isAVI
+        tempIm = im3(:, :, 3);
+    else
+        tempIm = bfGetPlane(reader, channels + dic);
+    end
+    centers = imfindcircles(bwareaopen(edge(imrotate(tempIm, angle(s)), 'zerocross'), 10), round([1.135 1.816] .* l), 'Sensitivity', 0.9);
     if ~isempty(centers)
         centers = (centers(1, 1) - 45 * l):(3 * l):(centers(1, 1) + 45 * l);
         for i = 1:length(finishedCells)
@@ -878,7 +900,7 @@ for p = 1:timePoints
     end
     k = [];
     for j = find(a2 & r2 > 0 & c2 ~= floor(c2))
-       k = [k; finishedCells(j).BoundingBox(p, 1:2)]; 
+       k = [k; finishedCells(j).BoundingBox(p, 1:2)];  %#ok<*AGROW>
     end
     if ~isempty(k)
         im = insertText(im, k, 'R', 'FontSize', k3, 'BoxColor', 'white');

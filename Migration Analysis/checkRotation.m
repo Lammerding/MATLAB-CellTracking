@@ -4,6 +4,9 @@ if series == 1
 else
     section2 = s;
 end
+if isnan(section2)
+	section2 = 1;
+end
 if ~isempty(bg)
     angle(s) = a;
     loc(s, :) = l2;

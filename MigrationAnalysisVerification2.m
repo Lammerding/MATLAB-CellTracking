@@ -71,7 +71,11 @@ end
 
 channels3 = loadFolder(end - 1) == 'B';
 
-files = dir([loadFolder '\*.mat']);
+if ispc
+    files = dir([loadFolder '\*.mat']);
+else
+    files = dir([loadFolder '/*.mat']);
+end
 for f = length(files):-1:1
     if strfind(files(f).name, 'error message (section ')
         files(f) = [];
@@ -105,7 +109,11 @@ global finishedCells
 fprintf('\nLoading data...')
 
 %% print headers into save file
-f = [loadFolder '\row 1.csv'];
+if ispc
+    f = [loadFolder '\row 1.csv'];
+else
+    f = [loadFolder '/row 1.csv'];
+end
 if exist(f, 'file')
     f = [f(1:(end - 4)) ' (2).csv'];
     i = 3;
@@ -115,7 +123,11 @@ if exist(f, 'file')
     end
 end
 fid = fopen(f, 'w+');
-f = [loadFolder '\row 2.csv'];
+if ispc
+    f = [loadFolder '\row 2.csv'];
+else
+    f = [loadFolder '/row 2.csv'];
+end
 if exist(f, 'file')
     f = [f(1:(end - 4)) ' (2).csv'];
     i = 3;
@@ -125,7 +137,11 @@ if exist(f, 'file')
     end
 end
 fid2 = fopen(f, 'w+');
-f = [loadFolder '\row 3.csv'];
+if ispc
+    f = [loadFolder '\row 3.csv'];
+else
+    f = [loadFolder '/row 3.csv'];
+end
 if exist(f, 'file')
     f = [f(1:(end - 4)) ' (2).csv'];
     i = 3;
@@ -135,7 +151,11 @@ if exist(f, 'file')
     end
 end
 fid3 = fopen(f, 'w+');
-f = [loadFolder '\successes.csv'];
+if ispc
+    f = [loadFolder '\successes.csv'];
+else
+    f = [loadFolder '/successes.csv'];
+end
 if exist(f, 'file')
     f = [f(1:(end - 4)) ' (2).csv'];
     i = 3;
@@ -152,7 +172,11 @@ fprintf(fidS, ',,,,,,,,,Constriction Passage\nDate,Position number,Duration of m
 if channels3
     rmpath('analysis with NLS only')
     addpath('analysis with NLS and H2B')
-    f = [loadFolder '\rupture.csv'];
+    if ispc
+        f = [loadFolder '\rupture.csv'];
+    else
+        f = [loadFolder '/rupture.csv'];
+    end
     if exist(f, 'file')
         f = [f(1:(end - 4)) ' (2).csv'];
         i = 3;
@@ -166,7 +190,11 @@ if channels3
     for i = 1:5
         fprintf(fidR, ',Rupture due to constriction?,Constriction size,Rupture without visible cause?,Intensity of rupture,Time of rupture,Time repaired,Duration of rupture,Rerupture?,Deformed post rupture?');
     end
-    f = [loadFolder '\rupture2.csv'];
+    if ispc
+        f = [loadFolder '\rupture2.csv'];
+    else
+        f = [loadFolder '/rupture2.csv'];
+    end
     if exist(f, 'file')
         f = [f(1:(end - 4)) ' (2).csv'];
         i = 3;
@@ -177,7 +205,11 @@ if channels3
     end
     fidR2 = fopen(f, 'w+');
     fprintf(fidR2, 'Position,Cell,,10 frames before rupture,,,,,,,,,,Start of rupture,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,60 frames after rupture starts');
-    f = [loadFolder '\unfinished ruptures.csv'];
+    if ispc
+        f = [loadFolder '\unfinished ruptures.csv'];
+    else
+        f = [loadFolder '/unfinished ruptures.csv'];
+    end
     if exist(f, 'file')
         f = [f(1:(end - 4)) ' (2).csv'];
         i = 3;
@@ -193,7 +225,6 @@ else
     addpath('analysis with NLS only')
 end
 
-unfinishedRuptures = struct();
 fprintf('\nCorrecting images...')
 %% go through .mat files and display videos and let user correct them
 unfinishedRuptures = struct();
@@ -204,7 +235,11 @@ for f = 1:length(files)
     end
     fprintf('\n\tSection %g...', s)
     
-    o = matfile([loadFolder '\' files(f).name], 'Writable', true);
+    if ispc
+        o = matfile([loadFolder '\' files(f).name], 'Writable', true);
+    else
+        o = matfile([loadFolder '/' files(f).name], 'Writable', true);
+    end
     
     frameRate = o.frameRate;
     c = o.c;
@@ -257,4 +292,6 @@ end
 
 fclose('all');
 fprintf('\nFinished.\n')
-winopen(loadFolder)
+if ispc
+    winopen(loadFolder)
+end

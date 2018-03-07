@@ -833,7 +833,7 @@ if all(c ~= [0 15])
                     end
                 else
                     if finishedCells(i).Constriction(p) == finishedCells(i).Constriction(j)
-                        if finishedCells(i).Centroid(p, 2) > loc(s, 2 * finishedCells(i).Constriction(p) - 1) && finishedCells(i).BoundingBox(p, 2) > loc(s, 2 * finishedCells(i).Constriction(p)) && (finishedCells(i).Centroid(p, 1) < centers(k) || finishedCells(i).Centroid(p, 1) > centers(k + 1))
+                        if c ~= 0 && (finishedCells(i).Centroid(p, 2) > loc(s, 2 * finishedCells(i).Constriction(p) - 1) && finishedCells(i).BoundingBox(p, 2) > loc(s, 2 * finishedCells(i).Constriction(p)) && (finishedCells(i).Centroid(p, 1) < centers(k) || finishedCells(i).Centroid(p, 1) > centers(k + 1)))
                             if j ~= 1
                                 finishedCells(i).Constriction(j:(p - 1)) = deal(finishedCells(i).Constriction(j - 1));
                             elseif finishedCells(i).BoundingBox(p, 2) + finishedCells(i).BoundingBox(p, 4) > loc(s, 2 * finishedCells(i).Constriction(p) - 1)
@@ -892,35 +892,35 @@ for p = 1:timePoints
     r2 = r(p:timePoints:end);
     c2 = cx(p:timePoints:end);
     k = [];
-    for j = find(a2 & r2 > 0 & c2 == floor(c2))
+    for j = find(a2 & r2 > 0 & c2 == floor(c2) & c2 ~= 0)
        k = [k; finishedCells(j).BoundingBox(p, 1:2)]; 
     end
     if ~isempty(k)
         im = insertText(im, k, 'CR', 'FontSize', k3, 'BoxColor', 'white');
     end
     k = [];
-    for j = find(a2 & r2 > 0 & c2 ~= floor(c2))
+    for j = find(a2 & r2 > 0 & (c2 ~= floor(c2) | c2 == 0))
        k = [k; finishedCells(j).BoundingBox(p, 1:2)];  %#ok<*AGROW>
     end
     if ~isempty(k)
         im = insertText(im, k, 'R', 'FontSize', k3, 'BoxColor', 'white');
     end
     k = [];
-    for j = find(a2 & r2 == 0 & c2 == floor(c2))
+    for j = find(a2 & r2 == 0 & c2 == floor(c2) & c2 ~= 0)
        k = [k; finishedCells(j).BoundingBox(p, 1:2)]; 
     end
     if ~isempty(k)
         im = insertText(im, k, 'C', 'FontSize', k3, 'BoxColor', 'magenta');
     end
     k = [];
-    for j = find(a2 & r2 == -5 & c2 == floor(c2))
+    for j = find(a2 & r2 == -5 & c2 == floor(c2) & c2 ~= 0)
        k = [k; finishedCells(j).BoundingBox(p, 1:2)]; 
     end
     if ~isempty(k)
         im = insertText(im, k, 'CD', 'FontSize', k3, 'BoxColor', 'white');
     end
     k = [];
-    for j = find(a2 & r2 == -5 & c2 ~= floor(c2))
+    for j = find(a2 & r2 == -5 & (c2 ~= floor(c2) | c2 == 0))
        k = [k; finishedCells(j).BoundingBox(p, 1:2)]; 
     end
     if ~isempty(k)

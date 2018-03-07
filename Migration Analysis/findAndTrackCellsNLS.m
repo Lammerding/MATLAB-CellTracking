@@ -349,7 +349,9 @@ for p = 1:channels:planes
                 i = find(dist(:, j) == i);
                 D = -bwdist(~bw);
                 L = watershed(imhmin(D, 1));
-                L(round([loc(s, 6):loc(s, 5) loc(s, 4):loc(s, 3) loc(s, 2):loc(s, 1)]), :) = 1;
+                if c ~= 0
+                    L(round([loc(s, 6):loc(s, 5) loc(s, 4):loc(s, 3) loc(s, 2):loc(s, 1)]), :) = 1;
+                end
                 temp = bw;
                 temp(L == 0) = 0;
                 box = activeCells(i).BoundingBox((p + channels - 1) / channels, :);
@@ -632,7 +634,7 @@ if ~isempty(centers)
                 end
             else
                 if finishedCells(i).Constriction(p) == finishedCells(i).Constriction(j)
-                    if finishedCells(i).Centroid(p, 2) > loc(s, 2 * finishedCells(i).Constriction(p) - 1) && finishedCells(i).BoundingBox(p, 2) > loc(s, 2 * finishedCells(i).Constriction(p)) && (finishedCells(i).Centroid(p, 1) < centers(k) || finishedCells(i).Centroid(p, 1) > centers(k + 1))
+                    if c ~= 0 && (finishedCells(i).Centroid(p, 2) > loc(s, 2 * finishedCells(i).Constriction(p) - 1) && finishedCells(i).BoundingBox(p, 2) > loc(s, 2 * finishedCells(i).Constriction(p)) && (finishedCells(i).Centroid(p, 1) < centers(k) || finishedCells(i).Centroid(p, 1) > centers(k + 1)))
                         if j ~= 1
                             finishedCells(i).Constriction(j:(p - 1)) = deal(finishedCells(i).Constriction(j - 1));
                         elseif finishedCells(i).BoundingBox(p, 2) + finishedCells(i).BoundingBox(p, 4) > loc(s, 2 * finishedCells(i).Constriction(p) - 1)
@@ -693,7 +695,7 @@ for p = 1:(planes / channels)
     r2 = r(p:(planes / channels):end);
     c2 = cx(p:(planes / channels):end);
     l2 = [];
-    for j = find(z & r2 & c2 == floor(c2))
+    for j = find(z & r2 & c2 == floor(c2) & c ~= 0)
        l2 = [l2; finishedCells(j).BoundingBox(p, 1:2)]; 
     end
     if ~isempty(l2)
@@ -707,7 +709,7 @@ for p = 1:(planes / channels)
         im = insertText(im, l2, 'R', 'FontSize', k3, 'BoxColor', 'white');
     end
     l2 = [];
-    for j = find(z & ~r2 & c2 == floor(c2))
+    for j = find(z & ~r2 & c2 == floor(c2) & c2 ~= 0)
        l2 = [l2; finishedCells(j).BoundingBox(p, 1:2)]; 
     end
     if ~isempty(l2)

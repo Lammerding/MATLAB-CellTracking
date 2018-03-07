@@ -227,7 +227,7 @@ if ~isempty([rupture.Duration])
         end
         subt = finishedCells(i).Ratio(rupture(j).Start - 1);
         mult = 1 / (max(finishedCells(i).Ratio(rupture(j).Start:min(rupture(j).Start + 10, find(finishedCells(i).Alive == 1, 1, 'last')))) - subt);
-        if max(finishedCells(i).Ratio(unfinishedRuptures(end).Start:until)) - finishedCells(i).Ratio(unfinishedRuptures(end).Start) < 2 * (max(finishedCells(i).Ratio(unfinishedRuptures(end).Start:until)) - finishedCells(i).Ratio(until))
+        if ~isempty(fields(unfinishedRuptures)) && unfinishedRuptures(end).Start < until && max(finishedCells(i).Ratio(unfinishedRuptures(end).Start:until)) - finishedCells(i).Ratio(unfinishedRuptures(end).Start) < 2 * (max(finishedCells(i).Ratio(unfinishedRuptures(end).Start:until)) - finishedCells(i).Ratio(until))
             fprintf(fidR2, '\n%g,%g,', s, num);
             for p = (rupture(j).Start - 10):until
                 fprintf(fidR2, ',');

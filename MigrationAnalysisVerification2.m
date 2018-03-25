@@ -261,6 +261,32 @@ for f = 1:length(files)
         end
         fprintf('\n\t\tSaving results...')
         try
+            % save nuclei positions
+            if ispc
+                mkdir([loadFolder '\nucleus positions'])
+                fLoc = [loadFolder '\nucleus positions\section ' num2str(s) ' (constriction size ' num2str(c) ').csv'];
+            else
+                mkdir([loadFolder '/nucleus positions'])
+                fLoc = [loadFolder '/nucleus positions/section ' num2str(s) ' (constriction size ' num2str(c) ').csv'];
+            end
+            fidLoc = fopen(fLoc, 'w+');
+            % print column headers
+            fprintf(fidLoc, 'Timepoints');
+            for i = 1:length(finishedCells)
+                fprintf(fidLoc, ',Nucleus %g X,Nucleus %g Y', i, i);
+            end
+            % print data
+            for i = 1:timePoints
+                fprintf(fidLoc, '\n%g', i);
+                for j = 1:length(finishedCells)
+                    if finishedCells(j).Alive(i)
+                        fprintf(fidLoc, ',%f,%f', finishedCells(j).Centroid(i, 1), finishedCells(j).Centroid(i, 2));
+                    else
+                        fprintf(fidLoc, ',,');
+                    end
+                end
+            end
+            fclose(fidLoc);
             saveSectionDataNLSH2B
         catch e
             save([loadFolder '\error message (section ' num2str(s) ').mat']);
@@ -280,6 +306,32 @@ for f = 1:length(files)
         end
         fprintf('\n\t\tSaving results...')
         try
+            % save nuclei positions
+            if ispc
+                mkdir([loadFolder '\nucleus positions'])
+                fLoc = [loadFolder '\nucleus positions\section ' num2str(s) ' (constriction size ' num2str(c) ').csv'];
+            else
+                mkdir([loadFolder '/nucleus positions'])
+                fLoc = [loadFolder '/nucleus positions/section ' num2str(s) ' (constriction size ' num2str(c) ').csv'];
+            end
+            fidLoc = fopen(fLoc, 'w+');
+            % print column headers
+            fprintf(fidLoc, 'Timepoints');
+            for i = 1:length(finishedCells)
+                fprintf(fidLoc, ',Nucleus %g X,Nucleus %g Y', i, i);
+            end
+            % print data
+            for i = 1:timePoints
+                fprintf(fidLoc, '\n%g', i);
+                for j = 1:length(finishedCells)
+                    if finishedCells(j).Alive(i)
+                        fprintf(fidLoc, ',%f,%f', finishedCells(j).Centroid(i, 1), finishedCells(j).Centroid(i, 2));
+                    else
+                        fprintf(fidLoc, ',,');
+                    end
+                end
+            end
+            fclose(fidLoc);
             saveSectionDataNLS
         catch e
             save([loadFolder '\error message (section ' num2str(s) ').mat']);
